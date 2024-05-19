@@ -1,0 +1,28 @@
+/* Фонт для вывода текстовых строк */
+@font-face {
+	font-family: Sans;
+	src: local('XO_Oriel_Nu'),
+	url(../fonts/XO_Oriel_Nu.ttf);
+}
+
+/* Фонт для специальных символов Unicode */
+@font-face {
+	font-family: Symb; /* Имя гарнитуры шрифта в нашей системе */
+	src: local('Symbola_hint'),
+	url(../fonts/Symbola_hint.ttf); /* Путь к файлу со шрифтом */
+}
+
+/* Стиль фонта для текста по умолчанию */
+.font-text{
+	font-family: Sans;
+}
+.units{
+	font-family: Symb;
+	font-size: 2.5px;
+	letter-spacing: 0.3px;
+	word-spacing: -0.5px;
+}
+
+.color-body{
+	background-color : #99CCFF;
+}

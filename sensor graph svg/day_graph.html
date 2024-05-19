@@ -1,0 +1,229 @@
+<html>
+<head>
+	<meta charset="UTF-8">
+	<script type="text/javascript" src="pribor.js"></script>
+
+	<!-- Общие css -->
+	<link href="css/fonts.css" rel="stylesheet" type="text/css">
+</head>
+
+<body class="color-body font-text">
+
+<div>
+	<object type="image/svg+xml" 
+		data="indicators/diagr_day.svg" 
+		id="DG" 
+		width="50%" >
+	</object>
+</div>
+
+
+<script>
+var range = 2; //диапазон измерения (в часах) до 24
+var mode = 1;
+//0 атмосферное давление
+//1 температура
+//2 влажность
+
+var Enow = new Date();
+var now = new Date();
+var startD = new Date();
+var y = now.getFullYear(), m = now.getMonth(), d1 = now.getDate(), d2, H1 = now.getHours(), H2, M1 = now.getMinutes(), M2, S = 0;
+
+var dth={ 
+	params : {
+		Title : "Атмосферное давление",	// Заголовок диаграммы
+		Rshk : 35,	// градусов - направление оцифровки шкалы
+		MinD : 730,  // минимум на шкале
+		MaxD : 770,	// максимум на шкале
+		mD : 5,	// количество "штрихов" на шкале
+		ED : "мм рт. ст.", // обозначение единиц измерения
+		borders : 1, //0 - не показывать, 1 – показывать границы норм
+		parametr : "BME280_pressure", //датчик с которого берутся значения
+		channels : [
+
+				{
+					uName : "Hydra-L", // вид прибора
+					serial : "01",     // серия прибора 
+					name : "", 		// имя прибора для легенды
+					color : "blue", //цвет на диаграмме
+					varName : "",  //датчик прибора
+				},
+				{
+					uName : "Hydra-L",
+					serial : "02",
+					name : "", 
+					color : "red",
+					varName : "",
+				},
+				{
+					uName : "Hydra-L",
+					serial : "03",
+					name : "", 
+					color : "green",
+					varName : "",
+				},
+				{
+					uName : "Hydra-L",
+					serial : "04",
+					name : "", 
+					color : "brown",
+					varName : "",
+				},
+				{
+					uName : "Hydra-L",
+					serial : "05",
+					name : "",
+					color : "purple",
+					varName : "",
+				},
+				{
+					uName : "Hydra-L",
+					serial : "06",
+					name : "", 
+					color : "pink",
+					varName : "",
+				},
+			]
+		}
+};
+
+if (mode == 0) {
+	dth.params.Title = "Атмосферное давление";
+	dth.params.ED = "мм рт. ст.";
+	dth.params.parametr = "BME280_pressure";
+	dth.params.MinD = 735;
+	dth.params.MaxD = 755;
+	dth.params.AdmMin = 740;
+	dth.params.AdmMax = 750;
+
+}
+else if (mode == 1) {
+	dth.params.Title = "Температура";
+	dth.params.ED = "°C";
+	dth.params.parametr = "BME280_temp";
+	dth.params.MinD = 14;
+	dth.params.MaxD = 30;
+	dth.params.AdmMin = 18;
+	dth.params.AdmMax = 24;
+	//dth.params.NormMin = 20; //условно
+	//dth.params.NormMax = 22;
+}
+else if (mode == 2) {
+	dth.params.Title = "Влажность";
+	dth.params.ED = "%";
+	dth.params.parametr = "BME280_humidity";
+	dth.params.MinD = 10;
+	dth.params.MaxD = 70;
+	dth.params.AdmMin = 40;
+	dth.params.AdmMax = 60;
+	//dth.params.NormMin = 45;
+	//dth.params.NormMax = 55;
+}
+dth.params.channels.forEach(channel => {
+	channel.name = channel.uName + " " + channel.serial;
+	channel.varName = dth.params.parametr;
+});
+
+initPribor("DG",dth);
+
+function corDate(x) { //для корректной интеграции в url
+	if (x<10) return "0" + x;
+	else return x;
+}
+
+// Функция для отправки первого запроса и дожидания ответа
+async function sendFirstRequest(y, m, d1, d2, H1, H2, M1, M2, S) {
+	try {
+		// Формируем URL с параметрами для первого запроса
+		
+		const firstUrl = `http://dbrobo.mgul.ac.ru/core/deb.php?fdate=${y}-${corDate(m)}-${corDate(d1)}+${corDate(H1)}%3A${corDate(M1)}%3A${corDate(S)}&sdate=${y}-
+		${corDate(m)}-${corDate(d2)}+${corDate(H2)}%3A${corDate(M2)}%3A${corDate(S)}&fileback=1`;
+
+		// Отправляем первый запрос на сервер
+		const firstResponse = await fetch(firstUrl);
+
+		// Проверяем успешность первого запроса
+		if (!firstResponse.ok) {
+		throw new Error(`Ошибка при выполнении первого запроса. Статус: ${firstResponse.status}`);
+		}
+
+		// Затем отправляем второй запрос
+		const secondData = await sendSecondRequest();
+
+		// Возвращаем данные из второго запроса
+		return secondData;
+
+	} catch (error) {
+		console.error("Произошла ошибка при получении данных, обновите страницу");
+	}
+}
+
+// Функция для отправки второго запроса и возврата данных
+async function sendSecondRequest() {
+	try {
+		// URL для второго запроса
+		const secondUrl = 'http://dbrobo.mgul.ac.ru/export/log.txt';
+
+		// Отправляем второй запрос на сервер
+		const secondResponse = await fetch(secondUrl);
+
+		// Проверяем успешность второго запроса
+		if (!secondResponse.ok) {
+		throw new Error(`Ошибка при выполнении второго запроса. Статус: ${secondResponse.status}`);
+		}
+
+		// Получаем ответ в json формате
+		const secondData = await secondResponse.text();
+
+		// Возвращаем данные из второго запроса
+		
+		return JSON.parse(secondData);
+
+	} catch (error) {
+		console.error("Произошла ошибка при получении данных, обновите страницу");
+	}
+}
+
+//Вызываем функцию для отправки первого запроса и получения данных из второго запроса
+(async () => {
+	for (var i=range;i>=1;i--) { 
+		now.setTime(Enow.getTime()-1000*60*60*(i-1));
+		startD.setTime(Enow.getTime() - 1000*60*60*i);
+		y = now.getFullYear(); 
+		m = now.getMonth()+1;
+		d1 = startD.getDate();
+		d2 = now.getDate();
+		H1 = startD.getHours();
+		H2 = now.getHours();
+		M1 = startD.getMinutes();
+		M2 = now.getMinutes();
+		
+		await sendFirstRequest(y, m, d1, d2, H1, H2, M1, M2, S).then((jsonData) => {
+			//тут вызываем work и проходим от время-range до текущего времени
+			dth.view.work(jsonData,dth.params, H2-H1);
+			H1 = H2;
+			M1 = M2;
+		});
+	}
+})();
+
+//тут берем запрос с заданным интервалом и вызываем work
+function get_data(){
+	d2 = new Date().getDate();
+	H2 = new Date().getHours();
+	M2 = new Date().getMinutes();
+	sendFirstRequest(y, m, d1, d2, H1, H2, M1, M2, S).then((jsonData) => {
+		dth.view.work(jsonData,dth.params, H2-H1);
+		d1 = d2;
+		H1 = H2;
+		M1 = M2;
+	});
+}
+
+//вызываем каждую минуту
+setInterval(get_data, 60*1000);
+</script>
+
+</body>
+</html>

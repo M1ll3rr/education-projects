@@ -1,0 +1,704 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg 
+	xmlns="http://www.w3.org/2000/svg"
+	xmlns:xlink="http://www.w3.org/1999/xlink"
+	width="100" 
+	height="100" 
+	viewBox="0 0 100 100" 
+	preserveAspectRatio="xMidYMid meet"
+	>
+
+	// Подключение своего шрифта, описанного во внешнем (общем) файле .css
+	<link xmlns="http://www.w3.org/1999/xhtml" rel="stylesheet" href="../css/fonts.css" type="text/css"/>
+
+
+
+	<script type="text/javascript">
+	<![CDATA[
+
+		var _NS="http://www.w3.org/2000/svg"
+
+		// Границы окна (делаем по viewBox)
+		var Xl=0;	
+		var Xr=100;	
+		var Yt=0;	
+		var Yb=100;	
+
+		// Характеристики всего окна
+		var bgTransparent=1;	// Прозрачность фона
+		var bgColor="white";	// Цвет фона, если нет прозрачности
+		var boundColor="white";	// Цвет обрамляющей границы
+		var lineColor="white";	// Цвет линий рисования сетки
+
+		var normColor="#0b8a31";
+		var maxColor = "#ff000d";
+		//<stop offset="80%" stop-color="#23ff0f" />
+		// Начальные отступы. 
+		// Диаграмма круговая, 
+		// поэтому без учёта каких-либо подписей,
+		// включая заголовок.
+		var dXl=5;	// Первоначальный отступ по x слева
+		var dXr=5;	// Первоначальный отступ по x справа
+		var dYt=5;	// Первоначальный отступ по y сверху
+		var dYb=5;	// Первоначальный отступ по y снизу
+
+		//оптимально от 5 до 10
+		var rC=5;	// по факту - радиус центрального "пятна"
+
+		// Рассчитываемые значения
+		var XL,XR;
+		var YT,YB;
+
+		// Центр круговой шкалы диаграммы
+		// Вычисляется
+		var XC;
+		var YC;
+
+
+		// Используемый шрифт
+		//var Font="'Arial',normal";
+		var Font="'Sans',normal";
+		var FontColor="black";
+
+		// Подпись всей диаграммы
+		// (заменяется из данных отображения)
+		var Title=undefined;
+
+        var Rshk=30;	// градусов - направление оцифровки шкалы
+        var MinD=730;	// минимум на шкале
+        var MaxD=770;	// максимум на шкале
+        var mD=5;	// количество "штрихов" на шкале
+
+		var gap = 20; //разрыв в минутах между первыми последними значениями на графике
+
+		var tl; //объявление timiline 
+
+	function init(params){
+		if(params.channels.length<=0){
+			return; // ничего не делать
+		}
+
+		// Перенос исходных данных из params, если заданы
+		if(params.Title !== undefined){
+			Title=params.Title;
+		}
+		if(params.Rshk !== undefined){
+			Rshk=params.Rshk;
+		}
+		if(params.MinD !== undefined){
+			MinD=params.MinD;
+		}
+		if(params.MaxD !== undefined){
+			MaxD=params.MaxD;
+		}
+		if(params.mD !== undefined){
+			mD=params.mD;
+		}
+		//допуск
+		if(params.AdmMin !== undefined & params.AdmMax !== undefined){
+			var admMin = params.AdmMin;
+			var admMax = params.AdmMax;
+		}
+		//норма (в случае наличия допуска)
+		if(params.NormMin !== undefined & params.NormMax !== undefined){
+			var normMin = params.NormMin;
+			var normMax = params.NormMax;
+		}
+		
+
+		// Подстройка "корпуса"
+		var t=this.document.getElementById("Korpus");
+		t.setAttribute("stroke",boundColor);
+		if(bgTransparent!=0){
+			t.setAttribute("fill","none");
+		}else{
+			t.setAttribute("fill",bgColor);
+		}
+
+		// Предварительный учёт наличия заголовка графика
+		if(Title!==undefined){
+			dYt+=6;
+		}
+
+		//	заголовок графика (если задан)
+		//	(Заголовок - с учётом наличия подписи шкалы y)
+		if(Title!==undefined){
+			var mc=this.document.createElementNS(_NS,"text");
+			mc.setAttribute("fill",FontColor);
+			mc.setAttribute("font-family",Font);
+			mc.setAttribute("font-size",7);
+			mc.setAttribute("text-anchor","middle");
+			mc.setAttribute("x",((Xr-dXr)-(Xl+dXl))/2+Xl+dXl);
+			mc.setAttribute("y",Yt+dYt-3);
+			var mct=this.document.createTextNode(Title);
+			mc.appendChild(mct);
+			this.document.firstChild.appendChild(mc);
+		}
+
+
+		// Легенда (если больше одного параметра)
+		if(params.channels.length>1){
+			// Создаём текстовую строку
+			var sps="\u00a0\u00a0\u00a0\u00a0";
+			var piSize = 6;
+			var mc=this.document.createElementNS(_NS,"text");
+			mc.setAttribute("fill",FontColor);
+			mc.setAttribute("font-family",Font);
+			mc.setAttribute("font-size",4);
+			if (params.channels.length>3) {
+				mc.setAttribute("font-size",3.5);
+				sps="\u00a0\u00a0";
+				if (params.channels.length>4) {
+					mc.setAttribute("font-size",3);
+					sps="\u00a0";
+					piSize = 5.5;
+				}
+				if (params.channels.length>5) {
+					mc.setAttribute("font-size",2.3);
+					piSize = 5;
+				}
+				if (params.channels.length>6) {
+					mc.setAttribute("font-size",2);
+					piSize = 4.5;
+				}
+			}
+			
+			mc.setAttribute("text-anchor","middle");
+			mc.setAttribute("x",((Xr-dXr)-(Xl+dXl))/2+Xl+dXl);
+			mc.setAttribute("y",Yb-dYb+1);
+			this.document.firstChild.appendChild(mc);
+
+			// Вписываем в неё элементы легенды
+			for(var i=0;i<params.channels.length;i++){
+				var pi=params.channels[i];
+
+				var mt=this.document.createElementNS(_NS,"tspan");
+				mt.setAttribute("fill",pi.color);
+				mt.setAttribute("font-size",piSize);
+				mt.setAttribute("dy",1);  // слегка опустим точку
+				var mct=this.document.createTextNode(sps+"\u2022 ");
+				mt.appendChild(mct);
+				mc.appendChild(mt);
+
+				var mt=this.document.createElementNS(_NS,"tspan");
+				mt.setAttribute("dy",-1); // после опускания точки поднимем строку обратно
+				var mct=this.document.createTextNode(pi.name);
+				mt.appendChild(mct);
+				mc.appendChild(mt);
+			}
+
+			dYb+=4;
+		}
+
+
+		// Учёт подписи часов (сверху и снизу)
+		dYt+=6;
+		dYb+=6;
+
+		// Окончательные расчёты окна вывода
+		XL=Xl+dXl;
+		XR=Xr-dXr;
+		YT=Yt+dYt;
+		YB=Yb-dYb;
+
+		XC=(XL+XR)/2; //точки центра
+		YC=(YT+YB)/2;
+		
+		// Корневой элемент для вставки других
+		var KRP=this.document.getElementById("Korpus");
+
+		// Формируем шкалы
+		var dangl=15;
+
+		// рисуем линии часов 0-24
+		for(var i=0;i<24;i++){
+			var t=this.document.createElementNS(_NS,"line");
+			t.setAttribute("x1",XC);
+			t.setAttribute("x2",XC);
+			t.setAttribute("y1",YC-rC);
+			t.setAttribute("y2",YT);
+			t.setAttribute("stroke",lineColor);
+			t.setAttribute("stroke-width",0.25);
+			var an=i*15;
+			t.setAttribute("transform","rotate("
+					+an+" "
+					+XC+","+YC+")");
+			KRP.parentNode.appendChild(t);
+
+			//формируем подписи
+			var p=this.document.createElementNS(_NS,"text");
+			p.setAttribute("fill",FontColor);
+			p.setAttribute("font-family",Font);
+			p.setAttribute("font-size",4);
+			p.setAttribute("text-anchor","middle");
+			p.setAttribute("x",XC);
+			if(i>=7 && i<=17){
+				p.setAttribute("y", YB+7);
+				p.setAttribute("transform","rotate("
+						+(i*dangl+180)+" "
+						+XC+","+YC+")"
+					);
+			}else{
+				p.setAttribute("y", YT-4);
+				p.setAttribute("transform","rotate("
+						+i*dangl+" "
+						+XC+","+YC+")"
+				);
+			}
+			var mct=this.document.createTextNode(i);
+			p.appendChild(mct);
+			KRP.parentNode.appendChild(p);
+		}
+		// Рисуем линии минут (20, 40)
+		for(var i=0;i<24;i++){
+			for(var j=20;j<60;j+=20){ 
+				var t=this.document.createElementNS(_NS,"line");
+				t.setAttribute("x1",XC);
+				t.setAttribute("x2",XC);
+				t.setAttribute("y1",YC+rC);
+				t.setAttribute("y2",YB);
+				t.setAttribute("stroke",lineColor);
+				t.setAttribute("stroke-width",0.125);
+				var an=i*15+(j/20)*5;
+				t.setAttribute("transform","rotate("
+						+an+" "
+						+XC+","+YC+")");
+				KRP.parentNode.appendChild(t);
+
+				//формируем подписи
+				var p=this.document.createElementNS(_NS,"text");
+				p.setAttribute("fill",FontColor);
+				p.setAttribute("font-family",Font);
+				p.setAttribute("font-size",2);
+				p.setAttribute("text-anchor","middle");
+				p.setAttribute("x",XC);
+				if(i>=6 && i<=17){
+					p.setAttribute("y",YT-0.5);
+					p.setAttribute("transform","rotate("
+							+(an+180)+" "
+							+XC+","+YC+")"
+						);
+				}else{
+					p.setAttribute("y",YB+2);
+					p.setAttribute("transform","rotate("
+							+an+" "
+							+XC+","+YC+")");
+				}
+				var mct=this.document.createTextNode(j);
+				p.appendChild(mct);
+				KRP.parentNode.appendChild(p);
+				
+			}
+		}
+
+		// Круги
+		var radius=rC;
+		var dr=(YB-(YC+rC))/(mD-1);
+		var met=MinD;
+		for(var i=0;i<mD;i++){
+			var t=this.document.createElementNS(_NS,"circle");
+			t.setAttribute("cx",XC);
+			t.setAttribute("cy",YC);
+			t.setAttribute("r",radius);
+			t.setAttribute("fill","none");
+			t.setAttribute("stroke",lineColor);
+			t.setAttribute("stroke-width",0.25);
+			KRP.parentNode.appendChild(t);
+
+			// подписи кругов
+			var p=this.document.createElementNS(_NS,"text");
+			p.setAttribute("fill",FontColor);
+			p.setAttribute("font-family",Font);
+			if (i==0) {
+				//чтобы не сильно выделялось на фоне других 
+				//меток заблюренных градиентом
+				t.setAttribute("opacity", 0.75);
+			}
+			p.setAttribute("font-size",3);
+			p.setAttribute("text-anchor","middle");
+			p.setAttribute("x",XC);
+			p.setAttribute("y",YC+radius-1);
+			p.setAttribute("transform","rotate("+Rshk+" "+XC+","+YC+")");
+			var mct=this.document.createTextNode(met.toFixed(0));
+			p.appendChild(mct);
+			KRP.parentNode.appendChild(p);
+
+			radius+=dr;
+			met=met+(MaxD-MinD)/(mD-1)
+		}
+
+		//рисую timeline, она должна идти вместе с точками
+		tl=this.document.createElementNS(_NS,"line");
+		tl.setAttribute("x1",XC);
+		tl.setAttribute("x2",XC);
+		tl.setAttribute("y1",YC-rC);
+		tl.setAttribute("y2",YT);
+		tl.setAttribute("stroke","purple");
+		tl.setAttribute("stroke-width",0.3);
+		tl.setAttribute("visibility","hidden");
+		KRP.parentNode.appendChild(tl);
+
+		
+
+		
+
+
+		//рисуем градиент окружности 
+		var g = this.document.getElementById("grad");
+		var tStart=this.document.createElementNS(_NS,"stop");
+		var tLow=this.document.createElementNS(_NS,"stop");
+		var tNormL=this.document.createElementNS(_NS,"stop");
+		var tNormH=this.document.createElementNS(_NS,"stop");
+		var tHigh=this.document.createElementNS(_NS,"stop");
+		var tEnd=this.document.createElementNS(_NS,"stop");
+
+		var d = 4;
+		if (params.AdmMin !== undefined & params.AdmMax !== undefined){
+			var AdmAbs = (admMin + admMax)/2;
+
+			var oLow = ((admMin-MinD)/(MaxD-MinD)) + (0.5-((admMin-MinD)/(MaxD-MinD)))/4;
+			var oHigh = ((admMax-MinD)/(MaxD-MinD)) + (0.5-((admMax-MinD)/(MaxD-MinD)))/4;
+			var oNorm = ((AdmAbs-MinD)/(MaxD-MinD)) + (0.5-((AdmAbs-MinD)/(MaxD-MinD)))/4;
+			if (params.NormMin !== undefined & params.NormMax !== undefined) {
+				d = 1.5;
+			}
+		}
+		else {
+			var oLow = 0.314;
+			var oHigh = 0.686;
+			var oNorm = 0.5;
+		}
+		
+		var oStart = oLow / 1.5;
+		var oEnd = 1 - (1 - oHigh) / 1.5;
+
+		tStart.setAttribute("offset", oStart); 
+		tStart.setAttribute("stop-color", "#ff3300");
+
+
+		tLow.setAttribute("offset", oLow);
+		tLow.setAttribute("stop-color", "#ffea00");
+
+		
+		tNormL.setAttribute("offset", oLow + (oNorm - oLow)/d); 
+		tNormL.setAttribute("stop-color", "#23ff0f");
+
+		tNormH.setAttribute("offset", oHigh - (oHigh - oNorm)/d); 
+		tNormH.setAttribute("stop-color", "#23ff0f"); 
+
+		tHigh.setAttribute("offset", oHigh );
+		tHigh.setAttribute("stop-color", "#ffea00");
+
+
+		tEnd.setAttribute("offset", oEnd );
+		tEnd.setAttribute("stop-color", "#ff3300");
+
+
+		g.insertBefore(tStart, g.childNodes[1]);
+		g.insertBefore(tLow, g.childNodes[2]); 
+		g.insertBefore(tNormL, g.childNodes[3]);
+		g.insertBefore(tNormH, g.childNodes[4]);
+		g.insertBefore(tHigh, g.childNodes[5]); 
+		g.insertBefore(tEnd, g.childNodes[6]); 
+	
+
+
+		var t=this.document.createElementNS(_NS,"circle");
+		t.setAttribute("cx",XC);
+		t.setAttribute("cy",YC);
+		t.setAttribute("r",(radius-dr+rC)/2);
+		t.setAttribute("fill","none");
+		t.setAttribute("stroke","url(#grad)");
+		t.setAttribute("stroke-opacity", "0.35");
+		t.setAttribute("stroke-width",(radius-dr-rC)+0.25);
+		KRP.parentNode.appendChild(t);
+		
+
+		//рисуем границы норм
+		if (params.borders !== undefined & params.borders == 1) {
+			if (params.NormMin !== undefined & params.NormMax !== undefined) {
+
+			var t=this.document.createElementNS(_NS,"circle");
+			t.setAttribute("cx",XC);
+			t.setAttribute("cy",YC);
+			t.setAttribute("r", rC+(normMax-MinD)/((MaxD-MinD)/(radius-dr-rC)));
+			t.setAttribute("fill","none");
+			t.setAttribute("stroke",normColor);
+			t.setAttribute("stroke-width",0.25);
+			t.setAttribute("stroke-dasharray","0.5,0.4")
+			t.setAttribute("stroke-opacity", 0.8)
+			KRP.parentNode.appendChild(t);
+
+			var t=this.document.createElementNS(_NS,"circle");
+			t.setAttribute("cx",XC);
+			t.setAttribute("cy",YC);
+			t.setAttribute("r", rC+(normMin-MinD)/((MaxD-MinD)/(radius-dr-rC)));
+			t.setAttribute("fill","none");
+			t.setAttribute("stroke",normColor);
+			t.setAttribute("stroke-width",0.25);
+			t.setAttribute("stroke-dasharray","0.5,0.4")
+			t.setAttribute("stroke-opacity", 0.8)
+			KRP.parentNode.appendChild(t);
+			}
+
+			//рисуем границы допусков
+			if (params.AdmMin !== undefined & params.AdmMax !== undefined) {
+				var t=this.document.createElementNS(_NS,"circle");
+				t.setAttribute("cx",XC);
+				t.setAttribute("cy",YC);
+				t.setAttribute("r", rC+(admMax-MinD)/((MaxD-MinD)/(radius-dr-rC)));
+				t.setAttribute("fill","none");
+				t.setAttribute("stroke",maxColor);
+				t.setAttribute("stroke-width",0.25);
+				t.setAttribute("stroke-dasharray","0.5,0.4")
+				t.setAttribute("stroke-opacity", 0.8)
+				KRP.parentNode.appendChild(t);
+
+				var t=this.document.createElementNS(_NS,"circle");
+				t.setAttribute("cx",XC);
+				t.setAttribute("cy",YC);
+				t.setAttribute("r", rC+(admMin-MinD)/((MaxD-MinD)/(radius-dr-rC)));
+				t.setAttribute("fill","none");
+				t.setAttribute("stroke",maxColor); 
+				t.setAttribute("stroke-width",0.25);
+				t.setAttribute("stroke-dasharray","0.5,0.4")
+				t.setAttribute("stroke-opacity", 0.8)
+				KRP.parentNode.appendChild(t);
+			}
+		}
+		
+
+
+		//====================
+		// рисуем path для отоброжения единиц измерения по кругу
+		if(params.ED!==undefined){
+			var dP=[];
+			var oDangle=0;
+			var oDr=0;
+			// Максимумы (внешний край)
+			for(var i=0;i<=12;i++){
+				// Из-за того, что "z" работает плохо,
+				// придётся сделать трюк (<= вместо <) для полного рисования path
+				if(i>=12){
+					var i1=0;
+				}else{
+					var i1=i;
+				}
+
+				if(i==0){
+					dP.push("M");
+				}else{
+					dP.push("C");
+				}
+
+				// Рассчитать точку в полярных координатах (помесячно)
+
+				//	// Угол
+				var DTangle=(-1)*(360/12)*i1;	// очень удобно, что с 0
+
+				//	// Дальность
+				var dy=rC-0.4;
+
+				// Пересчитать в Декартовы координаты
+				//+Rshk+35 чтобы ходило за углом меток с отступом 
+				var Dx=dy*Math.cos((DTangle+Rshk+7*rC)*3.14159/180)+XC;
+				var Dy=dy*Math.sin((DTangle+Rshk+7*rC)*3.14159/180)+YC;
+
+				// Поместить в массив
+				if(i==0){
+					dP.push(Dx,Dy);
+				}else{
+					// Вычислить в полярных координатах две точки
+					// для кубической кривой Безье
+					var Da1=oDangle-360/12/3;
+					var Da2=DTangle+360/12/3;
+					var dy1=oDr/Math.cos(360/12)/6.4;
+					var dy2=dy/Math.cos(360/12)/6.4;
+
+					// Пересчитать для Декартовых координат
+					var Dx1=dy1*Math.cos((Da1+Rshk+7*rC)*3.14159/180)+XC;
+					var Dy1=dy1*Math.sin((Da1+Rshk+7*rC)*3.14159/180)+YC;
+					var Dx2=dy2*Math.cos((Da2+Rshk+7*rC)*3.14159/180)+XC;
+					var Dy2=dy2*Math.sin((Da2+Rshk+7*rC)*3.14159/180)+YC;
+
+					// Уложить в массив
+					dP.push(Dx1,Dy1,Dx2,Dy2,Dx,Dy);
+				}
+
+				oDangle=DTangle;
+				oDr=dy;
+			}
+
+			// Настроить отображение единиц измерения
+			var t=this.document.getElementById("UnitsPath");
+			t.setAttribute("d",dP.join(" "));
+
+			var Utext = document.getElementById("UnitsText");
+			Utext.innerHTML = params.ED;
+		}
+
+		//====================
+		// Теперь готовим собственно отображение параметров
+
+		// Клонируем изображение точки и пути
+		// нужное число раз.
+		// Создаём массив для запоминания точек
+		// сразу в полярных координатах
+		// у каждого канала.
+		
+		var t1=this.document.getElementById("ParDot");
+		var t2=this.document.getElementById("ParPath");
+		for(var i=0;i<params.channels.length;i++){
+			var pi=params.channels[i];
+
+			// клонируем точку
+			var tc=t1.cloneNode(true);
+			tc.setAttribute("stroke",pi.color);
+			tc.setAttribute("fill",pi.color);
+			tc.removeAttribute("id");
+			// запомним её
+			pi.Dot=tc;
+			t1.parentNode.appendChild(tc);
+
+			// клонируем путь
+			tc=t2.cloneNode(true);
+			tc.setAttribute("stroke",pi.color);
+			tc.removeAttribute("id");
+			// запомним его
+			pi.Path=tc;
+			t2.parentNode.appendChild(tc);
+
+			// Массив полярных координат
+			pi.PolarCoords=[];
+			pi.lastValue = 0;
+				
+		}	
+
+	}
+
+	function work(jsonData,params, range){
+		// получим время от которого будем записывать измерения
+		var DT = new Date(); //время измерения (пойдем от 1-го измерения до Dnow)
+		var Dnow = new Date();
+		var DTangle = 0;
+		var Done = 0;
+	
+
+		for (const key in jsonData) {
+        	DT = new Date(jsonData[key].Date);
+			DT.setSeconds(0);
+			break;
+		}
+		if (range == 0) { //запросы по минуте
+			Dnow.setTime(DT.getTime() + 1000*60); 
+		}
+		else if (range < 0) { //переход от 23 к 00
+			Dnow.setTime(DT.getTime() + 1000*60*60*range) 
+			Dnow.setDate(Dnow.getDate() + 1);
+		}
+		else { //в случае запросов по часу
+			Dnow.setTime(DT.getTime() + 1000*60*60*range) 
+		}
+
+		while (DT.getTime() < Dnow.getTime()) {
+
+			for(var i=0;i<params.channels.length;i++){
+				if(params.channels[i].varName===undefined)
+					continue;
+				var pi=params.channels[i];
+
+				for (const key in jsonData) {
+					piDate = new Date(jsonData[key].Date);
+					if (piDate.getDate() == DT.getDate() & (piDate.getHours() > DT.getHours() || (piDate.getHours() == DT.getHours() & piDate.getMinutes() > DT.getMinutes()))) {
+						break;
+					}
+					//ищем значение из бд за текущую (в цикле) минуту
+					if (jsonData[key].uName == pi.uName & jsonData[key].serial == pi.serial & piDate.getHours() == DT.getHours() & piDate.getMinutes() == DT.getMinutes()) {
+						pi.lastValue = jsonData[key].data[pi.varName];
+					}
+				}
+		
+				var DTnum=DT.getMinutes() + DT.getHours()*60;
+				var dataY=pi.lastValue;
+				var dy=(dataY-MinD)/(MaxD-MinD)*(YB-(YC+rC))+rC;
+
+				dangl=180;
+				DTangle=dangl+((360/24/60)*DTnum); 
+
+				// Ограничим при выходе за шкалу
+				if(dy>(YB-(YC+rC))+rC){
+					dy=(YB-(YC+rC))+rC;
+				}else if(dy<rC){
+					dy=rC;
+				}
+
+				// Пересчитать полярные координаты точки в декатровы координаты
+				// в системе отсчёта всей картинки
+
+				var Dx=dy*Math.cos((DTangle+90)*3.14159/180)+XC;
+				var Dy=dy*Math.sin((DTangle+90)*3.14159/180)+YC;
+				
+				// Запомнить координаты точки
+				pi.PolarCoords.push(Dx+','+Dy);
+				
+				if (pi.PolarCoords.length>(24*60-gap)){ 
+				//20 меняем на любое значение чтобы был больше отступ
+					pi.PolarCoords.shift();
+				}
+
+				// Показать точку на диаграмме
+				pi.Dot.setAttribute("cx",Dx);
+				pi.Dot.setAttribute("cy",Dy);
+
+				// Генерация path и отображение
+				var PtAr=['M'];
+				PtAr.push(pi.PolarCoords[0]);
+				for(var k=1;k<pi.PolarCoords.length;k++){
+					PtAr.push('L',pi.PolarCoords[k]);
+				}
+				pi.Path.setAttribute("d",PtAr.join(" "));
+			}
+			//показать линию на диаграмме
+			tl.setAttribute("visibility","=collapse");
+			//+180 чтобы было на уровне точек
+			tl.setAttribute("transform","rotate(" +(DTangle+180)+" "+XC+","+YC+")")
+
+			DT.setTime(DT.getTime()+1000*60); //прибавляем минуту
+
+		}
+	}
+
+
+	]]>
+	</script>
+
+	<!-- Градиент нормы -->
+	<defs>
+		<radialGradient id="grad" cx="50%" cy="50%" r="100%" fx="50%" fy="50%">
+   		</radialGradient>
+	</defs>
+
+
+
+	<!-- ******** Далее собственно статическая картинка ******** -->
+	<!-- ******** с включением подвижных элементов ******** -->
+
+	<!-- "корпус" всего прибора -->
+	<rect id="Korpus" x="0" y="0" width="100" height="100" rx="1" fill="white" stroke="black" stroke-width="1" />
+
+	<!-- прототипы точки и пути для отображения параметра -->
+	<path id="ParPath" fill="none" stroke="black" stroke-width="0.25" d="M 0,0" />
+	<circle id="ParDot" cx="0" cy="0" r="0.25" fill="white" stroke="black" />
+
+	<!-- прототип линии времени -->
+	<line id="TimeLine" stroke="black" stroke-width="0.25" />
+	
+	
+	<path id="UnitsPath" fill="none" stroke="none" stroke-width="0"/>
+
+	<text class="units">
+		<textPath id="UnitsText" xlink:href="#UnitsPath"></textPath>
+	</text>
+
+</svg>
+
